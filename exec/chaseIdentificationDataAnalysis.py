@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
   
 
-    dataPath = os.path.join(DIRNAME,'..','..','ExpResult','exp1Total')
+    dataPath = os.path.join(DIRNAME,'..','..','ExpResult','exp2')
     # dataPath = os.path.join(DIRNAME,'..','..','ExpResult','519','result')
     # dataPath = os.path.join(DIRNAME,'..','..','ExpResult','512')
     # dataPath = 'F:\DeskMirror\DRL\ExpResult\512\result'
@@ -31,23 +31,24 @@ if __name__ == '__main__':
     df1 = df.loc[df['hideId'].isin([3, 4])]
     df2 = df1
     # df2 = df1.loc[df1['offset']==0.0]
-    df2["hit"] = df2.apply(lambda row: 1 if row['response'] == 1 and row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
-    df2["miss"] = df2.apply(lambda row: 1 if row['response'] == 0  else 0, axis=1)
+    # df2["hit"] = df2.apply(lambda row: 1 if row['response'] == 1 and row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
+    df2["hit"] = df2.apply(lambda row: 1 if  row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
+    # df2["miss"] = df2.apply(lambda row: 1 if row['response'] == 0  else 0, axis=1)
     # df2["hit"] = df2.apply(lambda row: 1 if row['response'] == 1 and row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
 
 
     # df.drop(df.columns[0], axis=1, inplace=True) 
     # df3 = df.loc[(df['hideId'] == 1.0) & (df['offset']==0.0)]
-    df3 = df.loc[(df['hideId'] == 1.0) ]
-    df3["correctRejection"] = df3.apply(lambda row: 1 if row['response'] == 0 else 0, axis=1)
+    # df3 = df.loc[(df['hideId'] == 1.0) ]
+    # df3["correctRejection"] = df3.apply(lambda row: 1 if row['response'] == 0 else 0, axis=1)
     # print(df3)
     
 
 
     manipulatedVariables = OrderedDict()
     manipulatedVariables['damping'] = [0.0, 0.5]  # [0.0, 1.0]
-    manipulatedVariables['frictionloss'] = [0.0, 1.0]  # [0.0, 0.2, 0.4]
-    manipulatedVariables['masterForce'] = [0.0, 1.0]  # [0.0, 2.0]
+    manipulatedVariables['fps'] = [40, 50]  # [0.0, 0.2, 0.4]
+    manipulatedVariables['displayTime'] = [10, 15]  # [0.0, 2.0]
     manipulatedVariables['offset'] = [0.0, 1.0]
 
     levelNames = list(manipulatedVariables.keys())
@@ -56,8 +57,8 @@ if __name__ == '__main__':
     toSplitFrame = pd.DataFrame(index=modelIndex)
 
     def getMean(para,data,index):
-        # selectSub = data.loc[(df['damping']==para['damping']) & (df['frictionloss']==para['frictionloss']) & (df['masterForce']==para['masterForce']) & (df['offset']==para['offset'])]
-        selectSub = data.loc[(data['damping']==para['damping']) & (data['frictionloss']==para['frictionloss']) & (data['masterForce']==para['masterForce']) ]
+        # selectSub = data.loc[(df['damping']==para['damping']) & (df['fps']==para['fps']) & (df['displayTime']==para['displayTime']) & (df['offset']==para['offset'])]
+        selectSub = data.loc[(data['damping']==para['damping']) & (data['fps']==para['fps']) & (data['displayTime']==para['displayTime']) ]
         return selectSub[index].mean()
     # mesureMentFromDf = lambda df: getMean(readParametersFromDf(df),df2)
     # statisticsDf = toSplitFrame.groupby(levelNames).apply(mesureMentFromDf)
@@ -75,8 +76,8 @@ if __name__ == '__main__':
     # for name, grp in df3.groupby('name'):
     #     # grp.index = grp.index.droplevel('name')
 
-    #     # for frictionloss, group in grp.groupby('frictionloss'):
-    #         # group.index = group.index.droplevel('frictionloss')
+    #     # for fps, group in grp.groupby('fps'):
+    #         # group.index = group.index.droplevel('fps')
     #     for measureMent in rowTitle:
     #         axForDraw = fig.add_subplot(numRows,numColumns,plotCounter)
     #         if plotCounter % numColumns == 0:
@@ -110,45 +111,45 @@ if __name__ == '__main__':
     # plot the results
 
     def drawPerformanceLine(dataDf, axForDraw):
-        for masterForce, grp in dataDf.groupby('masterForce'):
-            # grp.index = grp.index.droplevel('masterForce')
-            # meanSub=grp['hit'].mean()
+        for damping, grp in dataDf.groupby('damping'):
+            # grp.index = grp.index.droplevel('displayTime')
+            # meanSub=grp.groupby('offset')['hit'].mean()
             meanSub = grp.groupby('offset')['reactionTime'].mean()
-            print(meanSub)
+            # print(meanSub)
             # meanSub = grp.groupby('offset')['correctRejection'].mean()
-            meanSub.plot(ax=axForDraw, label='masdterForce={}'.format(masterForce), y='mean',marker='o', logx=False)
-            # meanSub.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='masterForce={}'.format(masterForce))
-            # plt.bar(masterForce, meanSub, label='masterForce={}'.format(masterForce), align='center')
+            meanSub.plot(ax=axForDraw, label='damping={}'.format(damping), y='mean',marker='o', logx=False)
+            # meanSub.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='displayTime={}'.format(displayTime))
+            # plt.bar(displayTime, meanSub, label='displayTime={}'.format(displayTime), align='center')
             # plt.hlines(1/6, -0.5,1.5, colors = "r", linestyles = "dashed")
             axForDraw.set_xlim(-0, 1)
-            # grp['hit'].plot(x='offset',ax=axForDraw, label='lr={}'.format(masterForce), y='mean',
+            # grp['hit'].plot(x='offset',ax=axForDraw, label='displayTime={}'.format(displayTime), y='mean',
                     # marker='o', logx=False)
 
     fig = plt.figure()
-    numRows = len(manipulatedVariables['damping'])
-    numColumns = len(manipulatedVariables['frictionloss'])
+    numRows = len(manipulatedVariables['displayTime'])
+    numColumns = len(manipulatedVariables['fps'])
     plotCounter = 1
 
-    for damping, grp in df2.groupby('damping'):
+    for displayTime, grp in df2.groupby('displayTime'):
         # grp.index = grp.index.droplevel('damping')
 
-        for frictionloss, group in grp.groupby('frictionloss'):
-            # group.index = group.index.droplevel('frictionloss')
+        for fps, group in grp.groupby('fps'):
+            # group.index = group.index.droplevel('fps')
 
             axForDraw = fig.add_subplot(numRows,numColumns,plotCounter)
             if plotCounter % numColumns == 1:
-                axForDraw.set_ylabel('damping: {}'.format(damping))
+                axForDraw.set_ylabel('displayTime: {}'.format(displayTime))
             if plotCounter <= numColumns:
-                axForDraw.set_title('frictionloss: {}'.format(frictionloss))
+                axForDraw.set_title('fps: {}'.format(fps))
             # axForDraw.set_ylim(0, 1)
-            axForDraw.set_ylim(0, 15000)
+            axForDraw.set_ylim(0, 20000)
 
             # plt.ylabel('Distance between optimal and actual next position of sheep')
             drawPerformanceLine(group, axForDraw)
             # trainStepLevels = statisticsDf.index.get_level_values('trainSteps').values
             # axForDraw.plot(trainStepLevels, [1.18]*len(trainStepLevels), label='mctsTrainData')
             plotCounter += 1
-    plt.suptitle('reactionTime,nubOfSubj={}'.format(nubOfSubj))
+    plt.suptitle('RT,nubOfSubj={}'.format(nubOfSubj))
 
     plt.legend(loc='best')
     plt.show()
