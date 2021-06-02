@@ -21,6 +21,47 @@ def adjustPostionDF(df, xPosIndex, yPosIndex, stimulusXBoundary, stimulusYBounda
     df[yPosIndex] = df[yPosIndex] * stimulusYBoundary[1] / dataSetBoundary[1] + stimulusYBoundary[0]
     adjustPostionDF = df
     return adjustPostionDF
+
+class HorizontalRotationTransformTrajectory:
+    def __init__(self, positionIndex, rawXRange, rawYRange):
+        self.xIndex, self.yIndex = positionIndex
+        self.rawXMin, self.rawXMax = rawXRange
+        self.rawYMin, self.rawYMax = rawYRange
+
+    def __call__(self, originalTrajs,):
+ 
+        adjustX = lambda rawX: self.rawXMin + self.rawXMax -rawX
+        adjustY = lambda rawY: rawY
+
+        adjustPair = lambda pair: [adjustX(pair[0]), adjustY(pair[1])]
+        agentCount = len(originalTrajs[0][0])
+
+        adjustState = lambda state: [adjustPair(state[agentIndex]) for agentIndex in range(agentCount)]
+        trajectory =[ [adjustState(state) for state in originalTraj] for originalTraj in originalTrajs]
+
+        return trajectory
+class RotationTransformTrajectory:
+    def __init__(self, positionIndex, rawXRange, rawYRange):
+        self.xIndex, self.yIndex = positionIndex
+        self.rawXMin, self.rawXMax = rawXRange
+        self.rawYMin, self.rawYMax = rawYRange
+
+    def __call__(self, originalTrajs,rotationAngle):
+
+        xCenter = (self.rawXMin + self.rawXMax) / 2
+        yCenter = (self.rawYMin + self.rawYMax) / 2
+
+        adjustX = lambda pair:xCenter + np.cos(rotationAngle) * (pair[0] - xCenter) - np.sin(rotationAngle)  * (pair[1] - yCenter) 
+        adjustY = lambda pair:yCenter + np.cos(rotationAngle) * (pair[1] - yCenter)  + np.sin(rotationAngle)  * (pair[0] - xCenter) 
+
+        adjustPair = lambda pair: [adjustX(pair), adjustY(pair)]
+        agentCount = len(originalTrajs[0][0])
+
+        adjustState = lambda state: [adjustPair(state[agentIndex]) for agentIndex in range(agentCount)]
+        trajectory =[ [adjustState(state) for state in originalTraj] for originalTraj in originalTrajs]
+
+        return trajectory
+
 class ScaleTrajectory:
     def __init__(self, positionIndex, rawXRange, rawYRange, scaledXRange, scaledYRange):
         self.xIndex, self.yIndex = positionIndex
@@ -44,6 +85,8 @@ class ScaleTrajectory:
         trajectory =[ [adjustState(state) for state in originalTraj] for originalTraj in originalTrajs]
 
         return trajectory
+
+
 class AdjustDfFPStoTraj:
     def __init__(self, oldFPS, newFPS):
         self.oldFPS = oldFPS
