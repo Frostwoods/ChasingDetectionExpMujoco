@@ -32,7 +32,7 @@ if __name__ == '__main__':
     df2 = df1
     # df2 = df1.loc[df1['offset']==0.0]
     df2["hit"] = df2.apply(lambda row: 1 if row['response'] == 1 and row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
-    df2["miss"] = df2.apply(lambda row: 1 if row['response'] == 0  else 0, axis=1)
+    df2["miss"] = df2.apply(lambda row: 1 if row['response'] == 0 else 0, axis=1)
     # df2["hit"] = df2.apply(lambda row: 1 if row['response'] == 1 and row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
 
 

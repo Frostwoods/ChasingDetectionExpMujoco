@@ -74,7 +74,26 @@ class DrawState:
         pg.display.flip()
         pg.time.wait(10)
         return self.screen
-
+class DrawStateWithLineRope:
+    def __init__(self, screen, circleSize, numOfAgent, positionIndex, ropeColor, ropeWidth,drawBackGround):
+        self.screen = screen
+        self.circleSize = circleSize
+        self.numOfAgent = numOfAgent
+        self.xIndex, self.yIndex = positionIndex
+        self.drawBackGround = drawBackGround
+        self.ropeColor = ropeColor
+        self.ropeWidth = ropeWidth
+    def __call__(self, state, circleColorList,tiedId):
+        self.drawBackGround()
+        tiedPos = [state[tiedId[0]],state[tiedId[1]]]
+        pg.draw.lines(self.screen, self.ropeColor, False, tiedPos, self.ropeWidth)
+        for agentIndex in range(self.numOfAgent):
+            agentPos = [np.int(state[agentIndex][self.xIndex]), np.int(state[agentIndex][self.yIndex])]
+            agentColor = circleColorList[agentIndex]
+            pg.draw.circle(self.screen, agentColor, agentPos, self.circleSize)
+        pg.display.flip()
+        pg.time.wait(10)
+        return self.screen
 # class DrawState():
 #     def __init__(self, drawBackGround, numOfAgent, screen, circleSize):
 #         self.drawBackGround = drawBackGround

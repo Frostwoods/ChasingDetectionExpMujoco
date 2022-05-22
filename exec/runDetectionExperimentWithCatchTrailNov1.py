@@ -4,7 +4,7 @@ import collections as co
 import numpy as np
 import random
 import itertools as it
-dirName = os.path.dirname(__file__)
+
 import json
 import pygame
 from pygame import time
@@ -15,11 +15,11 @@ import pandas as pd
 os.chdir(sys.path[0])
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.design import createDesignValues, samplePosition
-from src.experiment import SelectExperiment
-from src.trial import SelectTrialMujoco, CheckHumanSelectResponse
+from src.experiment import Experiment
+from src.trial import ChaseTrialMujoco, CheckHumanResponse
 from src.visualization import InitializeScreen, DrawStateWithRope, DrawImage, DrawBackGround, DrawImageClick, DrawText, DrawFixationPoint, DrawStateWithRope,DrawState
 from src.pandasWriter import WriteDataFrameToCSV
-from src.loadChaseData import ScaleTrajectory,AdjustDfFPStoTraj,loadFromPickle,saveToPickle
+from src.loadChaseData import ScaleTrajectory,AdjustDfFPStoTraj,loadFromPickle
 def crateVariableProduct(variableDict):
     levelNames = list(variableDict.keys())
     levelValues = list(variableDict.values())
@@ -85,17 +85,35 @@ def main():
     manipulatedVariables = co.OrderedDict()
     # manipulatedVariables['damping'] = [0.0]  # [0.0, 1.0]
     # manipulatedVariables['frictionloss'] = [0.0]  # [0.0, 0.2, 0.4]
-    # manipulatedVariables['masterForce'] = [0.0]
     manipulatedVariables['damping'] = [0.0,0.5]  # [0.0, 1.0]
-    manipulatedVariables['frictionloss'] = [0.0]  # [0.0, 0.2, 0.4]
-    manipulatedVariables['masterForce'] = [2.0]  # [0.0, 2.0]
-    manipulatedVariables['ropeLength'] = [0.06] 
+    manipulatedVariables['frictionloss'] = [0.0,1.0]  # [0.0, 0.2, 0.4]
     manipulatedVariables['offset'] = [0.0]
 
-    chaseTrailVariables = manipulatedVariables.copy()
-    catchTrailVariables = manipulatedVariables.copy()
-    chaseTrailVariables['hideId'] =[2,3]# [3,4] #0 wolf 1 sheep 2 master 3 4 distractor
-    catchTrailVariables['hideId'] = [1] #[1]
+    masterForceChaseTrailVariables = manipulatedVariables.copy()
+    masterForceCatchTrailVariables = manipulatedVariables.copy()
+    masterMassChaseTrailVariables = manipulatedVariables.copy()
+    masterMassCatchTrailVariables = manipulatedVariables.copy()
+
+    # masterForceChase
+    # masterForceCatch
+    # masterMassChase
+    # masterMassCatch
+
+    masterForceChaseTrailVariables['hideId'] = [2,3] #0 wolf 1 sheep 2 master 3 4 distractor
+    masterForceChaseTrailVariables['masterForce'] = [2.0]
+    masterForceChaseTrailVariables['masterMass'] = [1.0]
+
+    masterForceCatchTrailVariables['hideId'] = [1] #0 wolf 1 sheep 2 master 3 4 distractor
+    masterForceCatchTrailVariables['masterForce'] = [2.0]
+    masterForceCatchTrailVariables['masterMass'] = [1.0]
+
+    masterMassChaseTrailVariables['hideId'] = [2,3] #0 wolf 1 sheep 2 master 3 4 distractor
+    masterMassChaseTrailVariables['masterForce'] = [0.0]
+    masterMassChaseTrailVariables['masterMass'] = [2.0]
+
+    masterMassCatchTrailVariables['hideId'] = [1] #0 wolf 1 sheep 2 master 3 4 distractor
+    masterMassCatchTrailVariables['masterForce'] = [0.0]
+    masterMassCatchTrailVariables['masterMass'] = [2.0]
 
     def reMoveCertainCondition(conditions):
         toDelCondion = []
@@ -108,52 +126,78 @@ def main():
             # print(delcon)
             conditions.remove(delcon)
         return conditions
-    chaseTrailconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in chaseTrailVariables.items()])]
-    chaseTrailconditions = reMoveCertainCondition(chaseTrailconditions)
-    # chaseTrailconditionsWithId =list (zip(range(len(conditions)),conditions ))
-    catchTrailconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in catchTrailVariables.items()])]
-    catchTrailconditions = reMoveCertainCondition(catchTrailconditions)
 
-    # catchTrailconditionsWithId =list (zip(range(len(conditions)),conditions ))
-    # print('state',chaseTrailVariables,catchTrailVariables)
-    conditionsWithId =list (zip(range(len(chaseTrailconditions)+len(catchTrailconditions)),chaseTrailconditions + catchTrailconditions ))
+    masterForceChaseTrailconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in masterForceChaseTrailVariables.items()])]
+    masterForceChaseTrailconditions = reMoveCertainCondition(masterForceChaseTrailconditions)
     
+    masterForceCatchTrailconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in masterForceCatchTrailVariables.items()])]
+    masterForceCatchTrailconditions = reMoveCertainCondition(masterForceCatchTrailconditions)
 
-    # print(conditionsWithId)
-    # conditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in manipulatedVariables.items()])]
-    # conditionsWithId =list (zip(range(len(conditions)),conditions ))
-    # print(conditionsWithId)
-    conditions = chaseTrailconditions + catchTrailconditions
-    [condition.update({'conditionId': condtionId}) for condtionId,condition in zip(range(len(conditions)),conditions )]
-    print (conditions)
+    masterMassChaseconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in masterMassChaseTrailVariables.items()])]
+    masterMassChaseconditions = reMoveCertainCondition(masterMassChaseconditions)
+
+    masterMassCatchconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in masterMassCatchTrailVariables.items()])]
+    masterMassCatchconditions = reMoveCertainCondition(masterMassCatchconditions)
+
+
+
+    # conditionsWithId = list (zip(range(len(chaseTrailconditions + catchTrailconditions + masterMassChaseconditions + offsetMasterconditions)),chaseTrailconditions + catchTrailconditions + masterMassChaseconditions + offsetMasterconditions ))
+
+    conditions = masterForceChaseTrailconditions + masterForceCatchTrailconditions + masterMassChaseconditions + masterMassCatchconditions
+    # print(conditions[1]['damping'])
+ 
+    print(len(conditions))
+    conditionsWithId = list(zip(range(len(conditions)),conditions))
+    conditions = [condition.update({'conditionId': condtionId}) for condtionId,condition in zip(range(len(conditions)),conditions )]
+
+    # print (conditions)
     
-    chaseTrailTrajetoryIndexList = range (100)
+    
+    trajLengthList=[20,5,20,5]
+    # trajLengthList=[1,1,1,1]
+    # trajLengthList=[0,5,0,0]
+    
+    chaseTrailTrajetoryIndexList = range (trajLengthList[0])
     chaseTrailManipulatedVariablesForExp =  co.OrderedDict()
-    chaseTrailManipulatedVariablesForExp['conditionId'] = range(len(chaseTrailconditions))
+    chaseTrailManipulatedVariablesForExp['conditonId'] = range(len(masterForceChaseTrailconditions))
     chaseTrailManipulatedVariablesForExp['trajetoryIndex'] = chaseTrailTrajetoryIndexList
     chaseTrailProductedValues = it.product(*[[(key, value) for value in values] for key, values in chaseTrailManipulatedVariablesForExp.items()])
 
-    catchTrailTrajetoryIndexList = range (100)
+    catchTrailTrajetoryIndexList = range (trajLengthList[1])
     catchTrailManipulatedVariablesForExp =  co.OrderedDict()
-    catchTrailManipulatedVariablesForExp['conditionId'] = range(len(chaseTrailconditions),len(chaseTrailconditions)+len(catchTrailconditions))
+    catchTrailManipulatedVariablesForExp['conditonId'] = range(len(masterForceChaseTrailconditions),len(masterForceChaseTrailconditions)+len(masterForceCatchTrailconditions))
     catchTrailManipulatedVariablesForExp['trajetoryIndex'] = catchTrailTrajetoryIndexList
     catchTrailProductedValues = it.product(*[[(key, value) for value in values] for key, values in catchTrailManipulatedVariablesForExp.items()])
 
-    # print(productedValues)
-    exprimentVarableList = [dict(list(specificValueParameter)) for specificValueParameter in chaseTrailProductedValues]+[dict(list(specificValueParameter)) for specificValueParameter in catchTrailProductedValues]
+    hideMasterTrajetoryIndexList = range (trajLengthList[2])
+    hideMasterManipulatedVariablesForExp =  co.OrderedDict()
+    hideMasterManipulatedVariablesForExp['conditonId'] = range(len(masterForceChaseTrailconditions)+len(masterForceCatchTrailconditions),len(masterForceChaseTrailconditions)+len(masterForceCatchTrailconditions)+len(masterMassChaseconditions))
+    hideMasterManipulatedVariablesForExp['trajetoryIndex'] = hideMasterTrajetoryIndexList
+    hideMasterProductedValues = it.product(*[[(key, value) for value in values] for key, values in hideMasterManipulatedVariablesForExp.items()])
 
-    [exprimentVarable.update({'condition': conditionsWithId[exprimentVarable['conditionId']][1]}) for exprimentVarable in exprimentVarableList ]
-    # exprimentVarableList = [exprimentVarable.update({'condition': conditionsWithId[exprimentVarable['conditionId']][1]}) for exprimentVarable in exprimentVarableList ]
-    # print(exprimentVarableList)
-    # print(len(exprimentVarableList))
+    offsetMasterTrajetoryIndexList = range (trajLengthList[3])
+    offsetMasterManipulatedVariablesForExp =  co.OrderedDict()
+    offsetMasterManipulatedVariablesForExp['conditonId'] = range(len(masterForceChaseTrailconditions)+len(masterForceCatchTrailconditions)+len(masterMassChaseconditions),len(masterForceChaseTrailconditions)+len(masterForceCatchTrailconditions)+len(masterMassChaseconditions)+len(masterMassCatchconditions))
+    offsetMasterManipulatedVariablesForExp['trajetoryIndex'] = offsetMasterTrajetoryIndexList
+    offsetMasterProductedValues = it.product(*[[(key, value) for value in values] for key, values in offsetMasterManipulatedVariablesForExp.items()])
+
+    # print(productedValues)
+    exprimentVarableList = [dict(list(specificValueParameter)) for specificValueParameter in chaseTrailProductedValues]+[dict(list(specificValueParameter)) for specificValueParameter in catchTrailProductedValues] +[dict(list(specificValueParameter)) for specificValueParameter in hideMasterProductedValues] +[dict(list(specificValueParameter)) for specificValueParameter in offsetMasterProductedValues]
+
+    [exprimentVarable.update({'condition': conditionsWithId[exprimentVarable['conditonId']][1]}) for exprimentVarable in exprimentVarableList ]
+    # exprimentVarableList = [exprimentVarable.update({'condition': conditionsWithId[exprimentVarable['conditonId']][1]}) for exprimentVarable in exprimentVarableList ]
+    print(exprimentVarableList)
+    print(len(exprimentVarableList))
     numOfBlock = 1
     numOfTrialsPerBlock = 1
-    designValues = createDesignValues(exprimentVarableList * numOfTrialsPerBlock, numOfBlock)
+    isShuffle = True
+    designValues = createDesignValues(exprimentVarableList * numOfTrialsPerBlock, numOfBlock,isShuffle)
+
 
     positionIndex = [0, 1]
     FPS = 50
-    rawXRange = [-1, 1]
-    rawYRange = [-1, 1]
+    rawXRange = [200, 600]
+    rawYRange = [200, 600]
     scaledXRange = [200, 600]
     scaledYRange = [200, 600]
     scaleTrajectoryInSpace = ScaleTrajectory(positionIndex, rawXRange, rawYRange, scaledXRange, scaledYRange)
@@ -164,30 +208,30 @@ def main():
 
 
     scaleTrajectoryInTime = ScaleTrajectoryInTime(interpolateState)
-    # trajectoriesLoadDirectory ='../PataData/Nov1'
-    trajectoriesLoadDirectory = os.path.join(dirName,'..','PataData','Nov1')
 
-    # dirName = os.path.dirname(__file__)
-    # trajectoriesLoadDirectory =os.path.join(dataFolder, 'trajectory', modelSaveName)
+    trajectoriesSaveDirectory ='../PataData/killZone=4.0_distractorKillZone=0.0selectTrajByNov1'
+    # trajectoriesSaveDirectory =os.path.join(dataFolder, 'trajectory', modelSaveName)
     trajectorySaveExtension = '.pickle'
 
     evaluateEpisode = 60000
-    evalNum = 100
-    masterMass = 1.0
-    fixedParameters = {'distractorNoise': 1.0,'evaluateEpisode': evaluateEpisode,'masterMass':masterMass,'killZone':4.0,'ropePunishWeight':0.3,'killZoneofDistractor':0.0}
-    # fixedParameters = {'distractorNoise': 3.0,'evaluateEpisode': evaluateEpisode,'masterMass':2.0,'ropeLength':0.12,'killZone':2.0,'ropePunishWeight':0.3}
+    ropePunishWeight=0.3
+    killZone = 4.0
+    killZoneofDistractor = 0.0
+    ropeLength = 0.06
+    fixedParameters = {'distractorNoise': 1.0,'evaluateEpisode': evaluateEpisode,'ropePunishWeight':ropePunishWeight,'killZone':killZone,'killZoneofDistractor':killZoneofDistractor,'ropeLength':ropeLength}
+    selctDict = {1:5,2:20,3:20}
     # fixedParameters = {'distractorNoise': 3.0,'evaluateEpisode': evaluateEpisode, 'evalNum': evalNum}
-    generateTrajectoryLoadPath = GetSavePath(trajectoriesLoadDirectory, trajectorySaveExtension, fixedParameters)
+    generateTrajectoryLoadPath = GetSavePath(trajectoriesSaveDirectory, trajectorySaveExtension, fixedParameters)
     # trajectoryDf = lambda condition: pd.read_pickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'], 'evalNum': evalNum,}))
-    # trajectoryDf = lambda condition: loadFromPickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'], 'evalNum': evalNum,}))
-    trajectoryDf = lambda condition: loadFromPickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'], 'evalNum': evalNum,'ropeLength':condition['ropeLength']}))
+    trajectoryDf = lambda condition: loadFromPickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'],'select':selctDict[condition['hideId']] , 'masterMass':condition['masterMass']}))
+
     # trajectoryDf = lambda condition: pd.read_pickle(generateTrajectoryLoadPath(condition))
     getTrajectory = lambda trajectoryDf: scaleTrajectoryInTime(scaleTrajectoryInSpace(trajectoryDf))
-    # getTrajectory = lambda trajectoryDf: sc
-
+    # getTrajectory = lambda trajectoryDf: scaleTrajectoryInSpace(trajectoryDf)
+    
     print('loading')
     stimulus = {conditionId:getTrajectory(trajectoryDf(condition))  for conditionId,condition in conditionsWithId}
-    print(len(stimulus[0][0]))
+    # print(stimulus[0][0][0])
     # print(stimulus[20][0][0])
     print('loding success')
 
@@ -195,17 +239,11 @@ def main():
     experimentValues = co.OrderedDict()
     experimentValues["name"] = input("Please enter your name:").capitalize()
     
-    # trajectoriesSaveDirectory ='../PataData/selectTrajBy{}'.format(experimentValues["name"])
-    trajectoriesSaveDirectory ='../PataData/killZone=4.0_distractorKillZone=0.0selectTrajBy{}'.format(experimentValues["name"])
-    if not os.path.exists(trajectoriesSaveDirectory):
-        os.makedirs(trajectoriesSaveDirectory)
-    generateTrajectorySavePath = GetSavePath(trajectoriesSaveDirectory, trajectorySaveExtension, fixedParameters)
-    SaveTrajectoryDf = lambda data,condition,TrajNum: saveToPickle(data,generateTrajectorySavePath({'ropeLength':condition['ropeLength'],'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'], 'masterMass':masterMass,'select': TrajNum,
-                       }))
+    
     screenWidth = 800
     screenHeight = 800
 
-    fullScreen = False
+    fullScreen = True
     initializeScreen = InitializeScreen(screenWidth, screenHeight, fullScreen)
     screen = initializeScreen()
  
@@ -213,7 +251,7 @@ def main():
     circleSize = 10
     clickImageHeight = 80
     lineWidth = 3
-    fontSize = 25
+    fontSize = 50
     xBoundary = [leaveEdgeSpace, screenWidth - leaveEdgeSpace * 2]
     yBoundary = [leaveEdgeSpace, screenHeight - leaveEdgeSpace * 2]
 
@@ -251,27 +289,23 @@ def main():
     # drawStateWithRope = DrawStateWithRope(screen, circleSize, numOfAgent, positionIndex, ropeColor, drawBackground)    
    
 
-    writerPath = os.path.join(resultsPath, experimentValues["name"]) + '_select.csv'
+    writerPath = os.path.join(resultsPath, experimentValues["name"]) + '.csv'
     writer = WriteDataFrameToCSV(writerPath)
 
-    displayFrames = 400
-    keysForCheck = {'f': 0, 'j': 1,'back':-1}
-    checkHumanSelectResponse = CheckHumanSelectResponse(keysForCheck)
-    trial = SelectTrialMujoco(conditionsWithId,displayFrames, drawState, drawImage, stimulus, checkHumanSelectResponse, colorSpace, numOfAgent, drawFixationPoint, drawText, drawImageClick, clickWolfImage, clickSheepImage, FPS)
+    displayFrames = 500
+    keysForCheck = {'f': 0, 'j': 1}
+    checkHumanResponse = CheckHumanResponse(keysForCheck)
+    trial = ChaseTrialMujoco(conditionsWithId,displayFrames, drawState, drawImage, stimulus, checkHumanResponse, colorSpace, numOfAgent, drawFixationPoint, drawText, drawImageClick, clickWolfImage, clickSheepImage, FPS)
     
-    experiment = SelectExperiment(trial, writer,SaveTrajectoryDf, experimentValues,drawImage,restImage,drawBackGround)
+    experiment = Experiment(trial, writer, experimentValues,drawImage,restImage,drawBackGround)
    
     restDuration=20
 
     drawImage(introductionImage1)
     drawImage(introductionImage2)
     
-    candicateNum = evalNum
-    chaseTrajNum = 20
-    catchTrajNum = 5
-    restoreNum = 0
-    targetQuantityList = [chaseTrajNum] * len(chaseTrailconditions) + [catchTrajNum] * len(catchTrailconditions)
-    experiment(conditions,targetQuantityList,candicateNum,restoreNum)
+
+    experiment(designValues,restDuration)
     # self.darwBackground()
     drawImage(finishImage)
 

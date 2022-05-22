@@ -10,24 +10,23 @@ import pygame
 from pygame import time
 from pygame.color import THECOLORS
 
-# import pandas as pd
+import pandas as pd
 
 os.chdir(sys.path[0])
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from src.design import createDesignValues
+from src.design import createDesignValues, samplePosition
 from src.experiment import Experiment
-from src.trial import ChaseTrialMujocoFps, CheckHumanResponseWithSpace
-from src.visualization import InitializeScreen, DrawStateWithRope, DrawImage, DrawBackGround, DrawImageClick, DrawText, DrawFixationPoint, DrawStateWithRope,DrawState
+from src.trial import ChaseTrialMujoco, CheckHumanResponse,ChaseTrialMujocoWithLineRope,ChaseTrialMujocoWithLineRopeForReport
+from src.visualization import InitializeScreen, DrawImage, DrawBackGround, DrawImageClick, DrawText, DrawFixationPoint, DrawStateWithRope,DrawState,DrawStateWithLineRope
 from src.pandasWriter import WriteDataFrameToCSV
 from src.loadChaseData import ScaleTrajectory,AdjustDfFPStoTraj,loadFromPickle,HorizontalRotationTransformTrajectory,RotationTransformTrajectory
-# def crateVariableProduct(variableDict):
-#     levelNames = list(variableDict.keys())
-#     levelValues = list(variableDict.values())
-#     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
-#     productDictList=[]
-#     productDictList=[{levelName:str(modelIndex.get_level_values(levelName)[modelIndexNumber]) \
-#             for levelName in levelNames} for modelIndexNumber in range(len(modelIndex))]
-#     return productDictList
+def crateVariableProduct(variableDict):
+    levelNames = list(variableDict.keys())
+    levelValues = list(variableDict.values())
+    modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
+    productDictList=[]
+    productDictList=[{levelName:str(modelIndex.get_level_values(levelName)[modelIndexNumber])  for levelName in levelNames} for modelIndexNumber in range(len(modelIndex))]
+    return productDictList
 class GetSavePath:
     def __init__(self, dataDirectory, extension, fixedParameters={}):
         self.dataDirectory = dataDirectory
@@ -79,110 +78,120 @@ class  ScaleTrajectoryInTime:
 
 
 def main():
-    numOfAgent = 4
-
-
+    numOfAgent = 3
     manipulatedVariables = co.OrderedDict()
     # manipulatedVariables['damping'] = [0.0]  # [0.0, 1.0]
     # manipulatedVariables['frictionloss'] = [0.0]  # [0.0, 0.2, 0.4]
     # manipulatedVariables['masterForce'] = [0.0]
-    manipulatedVariables['damping'] = [0.0, 0.5]  # [0.0, 1.0]
+    manipulatedVariables['damping'] = [0.5]  # [0.0, 1.0]
     manipulatedVariables['frictionloss'] = [1.0]  # [0.0, 0.2, 0.4]
-    manipulatedVariables['masterForce'] = [0.0]  # [0.0, 2.0]
-    manipulatedVariables['offset'] = [0.0, 1.0]
-    manipulatedVariables['hideId'] = [3, 4]
-    manipulatedVariables['fps'] = [40, 50]  
-    manipulatedVariables['displayTime'] = [10, 15]
-
+    manipulatedVariables['masterForce'] = [1.0]  # [0.0, 2.0]
+    manipulatedVariables['offset'] = [0.0]
+    manipulatedVariables['tiedPairs'] = [[1,2]]#[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]
+    manipulatedVariables['agentIdForDraw'] = [[0,1,2]]
     chaseTrailVariables = manipulatedVariables.copy()
-    # catchTrailVariables = manipulatedVariables.copy()
-    # chaseTrailVariables['hideId'] = [3,4] #0 wolf 1 sheep 2 master 3 4 distractor
-    # catchTrailVariables['hideId'] = [1]
+    catchTrailVariables = manipulatedVariables.copy()
+    chaseTrailVariables['hideId'] = [3] #0 wolf 1 sheep 2 master 3 4 distractor
+    catchTrailVariables['hideId'] = [4]
     chaseTrailconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in chaseTrailVariables.items()])]
-    # catchTrailconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in catchTrailVariables.items()])]
-
-    conditionsWithId =list (zip(range(len(chaseTrailconditions)),chaseTrailconditions))
-    print(conditionsWithId)
-    conditions = chaseTrailconditions
+    # chaseTrailconditionsWithId =list (zip(range(len(conditions)),conditions ))
+    catchTrailconditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in catchTrailVariables.items()])]
+    # catchTrailconditionsWithId =list (zip(range(len(conditions)),conditions ))
+    # print('state',chaseTrailVariables,catchTrailVariables)
+    conditionsWithId =list (zip(range(len(chaseTrailconditions)+len(catchTrailconditions)),chaseTrailconditions + catchTrailconditions ))
+    # print(conditionsWithId)
+    # conditions = [dict(list(specificValueParameter)) for specificValueParameter in it.product(*[[(key, value) for value in values] for key, values in manipulatedVariables.items()])]
+    # conditionsWithId =list (zip(range(len(conditions)),conditions ))
+    # print(conditionsWithId,'`12`3')
+    conditions = chaseTrailconditions + catchTrailconditions
     conditions = [condition.update({'conditionId': condtionId}) for condtionId,condition in zip(range(len(conditions)),conditions )]
-   
-    chaseTrailNum = 10
-    chaseTrailTrajetoryIndexList = range (chaseTrailNum)
+    # print (conditions)
+    
+    
+    
+    chaseTrailNum=10
+    chaseTrailTrajetoryIndexList = []#range (10)
     chaseTrailManipulatedVariablesForExp =  co.OrderedDict()
     chaseTrailManipulatedVariablesForExp['conditonId'] = range(len(chaseTrailconditions))
     chaseTrailManipulatedVariablesForExp['trajetoryIndex'] = chaseTrailTrajetoryIndexList
     chaseTrailProductedValues = it.product(*[[(key, value) for value in values] for key, values in chaseTrailManipulatedVariablesForExp.items()])
-    
-    # catchTrailNum = 0 
-    # catchTrailTrajetoryIndexList = range (catchTrailNum)
-    # catchTrailManipulatedVariablesForExp =  co.OrderedDict()
-    # catchTrailManipulatedVariablesForExp['conditonId'] = range(len(chaseTrailconditions),len(chaseTrailconditions)+len(catchTrailconditions))
-    # catchTrailManipulatedVariablesForExp['trajetoryIndex'] = catchTrailTrajetoryIndexList
-    # catchTrailProductedValues = it.product(*[[(key, value) for value in values] for key, values in catchTrailManipulatedVariablesForExp.items()])
+
+    catchTrailNum=10
+    catchTrailTrajetoryIndexList =[4]#range (5,10)
+    catchTrailManipulatedVariablesForExp =  co.OrderedDict()
+    catchTrailManipulatedVariablesForExp['conditonId'] = range(len(chaseTrailconditions),len(chaseTrailconditions)+len(catchTrailconditions))
+    catchTrailManipulatedVariablesForExp['trajetoryIndex'] = catchTrailTrajetoryIndexList
+    catchTrailProductedValues = it.product(*[[(key, value) for value in values] for key, values in catchTrailManipulatedVariablesForExp.items()])
 
     # print(productedValues)
-    exprimentVarableList = [dict(list(specificValueParameter)) for specificValueParameter in chaseTrailProductedValues]
+    exprimentVarableList = [dict(list(specificValueParameter)) for specificValueParameter in chaseTrailProductedValues]+[dict(list(specificValueParameter)) for specificValueParameter in catchTrailProductedValues]
 
     [exprimentVarable.update({'condition': conditionsWithId[exprimentVarable['conditonId']][1]}) for exprimentVarable in exprimentVarableList ]
     # exprimentVarableList = [exprimentVarable.update({'condition': conditionsWithId[exprimentVarable['conditonId']][1]}) for exprimentVarable in exprimentVarableList ]
-    # print(exprimentVarableList)
-    # print(len(exprimentVarableList))
+    print(exprimentVarableList)
+    print(len(exprimentVarableList))
     numOfBlock = 1
     numOfTrialsPerBlock = 1
-    isShuffle = True
+    isShuffle = False
     designValues = createDesignValues(exprimentVarableList * numOfTrialsPerBlock, numOfBlock,isShuffle)
 
 
     positionIndex = [0, 1]
-    standardFPS = 50
+    FPS = 50
     rawXRange = [200, 600]
     rawYRange = [200, 600]
     scaledXRange = [200, 600]
     scaledYRange = [200, 600]
     scaleTrajectoryInSpace = ScaleTrajectory(positionIndex, rawXRange, rawYRange, scaledXRange, scaledYRange)
     oldFPS = 50
-    numFramesToInterpolate = int(standardFPS/oldFPS - 1)
+    numFramesToInterpolate = int(FPS/oldFPS - 1)
     interpolateState = InterpolateState(numFramesToInterpolate)
-    scaleTrajectoryInTime = ScaleTrajectoryInTime(interpolateState)
-    horizontalRotationTransformTrajectory = HorizontalRotationTransformTrajectory(positionIndex, rawXRange, rawYRange )
-    rotationTransformTrajectory = RotationTransformTrajectory(positionIndex, rawXRange, rawYRange )
+    horizontalRotationTransformTrajectory = HorizontalRotationTransformTrajectory(positionIndex, scaledXRange, scaledYRange )
+    rotationTransformTrajectory = RotationTransformTrajectory(positionIndex, scaledXRange, scaledYRange )
     def transFormTrajectory(trajList,randomId):
-        # if randomId<12:
-        #     isRotation = randomId//8
-        #     rotationAngle =np.mod(randomId//2,4)* np.pi / 2
-        # else:
-        #     isRotation = 0
-        #     rotationAngle = np.mod(randomId,4)* np.pi / 2
-       # if isRotation:
-        #     finalTrajs = horizontalRotationTransformTrajectory(rotationTraj)
-        randomSeed = np.mod(randomId, 8)
-        rotationAngle = np.mod(randomSeed, 4) * np.pi / 2
+        if randomId<12:
+            isMirror = randomId//8
+            rotationAngle =np.mod(randomId//2,4)* np.pi / 2
+        else:
+            isMirror = randomId//16
+            rotationAngle = np.mod(randomId,4)* np.pi / 2
         rotationTraj = rotationTransformTrajectory(trajList, rotationAngle)
-        # if np.mod(randomSeed//4,2) ==1:
-            # finalTrajs = horizontalRotationTransformTrajectory(rotationTraj)
-        # else:
-        # else:
-        # finalTrajs = rotationTraj
+        
+        if isMirror:
+            finalTrajs = horizontalRotationTransformTrajectory(rotationTraj)
+
+        finalTrajs = rotationTraj
         return finalTrajs
-    trajectoriesSaveDirectory ='../PataData/exp2Traj'
+
+
+    scaleTrajectoryInTime = ScaleTrajectoryInTime(interpolateState)
+
+    trajectoriesSaveDirectory ='../PataData/TrajForReport'
     # trajectoriesSaveDirectory =os.path.join(dataFolder, 'trajectory', modelSaveName)
     trajectorySaveExtension = '.pickle'
-
-    selctDict = {3:chaseTrailNum,4:chaseTrailNum}
+    selctDict = {1:catchTrailNum,3:chaseTrailNum,4:chaseTrailNum}
     evaluateEpisode = 120000
     evalNum = 20
     fixedParameters = {'distractorNoise': 3.0,'evaluateEpisode': evaluateEpisode}
+    # fixedParameters = {'distractorNoise': 3.0,'evaluateEpisode': evaluateEpisode, 'evalNum': evalNum}
     generateTrajectoryLoadPath = GetSavePath(trajectoriesSaveDirectory, trajectorySaveExtension, fixedParameters)
-    trajectoryDf = lambda condition: loadFromPickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'],'select':selctDict[condition['hideId']] }))
+    # trajectoryDf = lambda condition: pd.read_pickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'], 'evalNum': evalNum,}))
+    trajectoryDf = lambda condition: loadFromPickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'], 'select': selctDict[condition['hideId']]
+                       }))
 
+    # trajectoryDf = lambda condition: pd.read_pickle(generateTrajectoryLoadPath(condition))
     getTrajectory = lambda trajectoryDf: scaleTrajectoryInTime(scaleTrajectoryInSpace(trajectoryDf))
+    # getTrajectory = lambda trajectoryDf: scaleTrajectoryInSpace(trajectoryDf)
     
     print('loading')
-    # stimulus = {conditionId:getTrajectory(trajectoryDf(condition))  for conditionId,condition in conditionsWithId}
-# 
-    transformedStimulus = {conditionId: transFormTrajectory(getTrajectory(trajectoryDf(condition)),conditionId)  for conditionId,condition in conditionsWithId}
+    # stimulus = {conditionId:transFormTrajectory(getTrajectory(trajectoryDf(condition)))  for conditionId,condition in conditionsWithId}
+  
+    stimulus = {conditionId: transFormTrajectory(getTrajectory(trajectoryDf(condition)),conditionId)  for conditionId,condition in conditionsWithId}
+    print(stimulus[0][0][0])
+    print(stimulus[1][0][0])
     print('loding success')
-    print(len(transformedStimulus[1]))
+
+    # print(stimulus[1][1])
     experimentValues = co.OrderedDict()
     experimentValues["name"] = input("Please enter your name:").capitalize()
     
@@ -190,7 +199,7 @@ def main():
     screenWidth = 800
     screenHeight = 800
 
-    fullScreen = True
+    fullScreen = False
     initializeScreen = InitializeScreen(screenWidth, screenHeight, fullScreen)
     screen = initializeScreen()
  
@@ -207,15 +216,15 @@ def main():
     textColor = THECOLORS['white']
     fixationPointColor = THECOLORS['white']
 
-    colorSpace=[(203,164,4,255),(49,153,0,255),(255,90,16,255),(251,7,255,255),(9,204,172,255),(3,28,255,255)]
-
-
+    # colorSpace=[(203,164,4,255),(49,153,0,255),(255,90,16,255),(251,7,255,255),(9,204,172,255),(3,28,255,255)]
+    # colorSpace=[,(9,204,172,255)]
+    # colorSpace=[(49,153,0,255),(255,90,16,255),(3,28,255,255),(203,164,4,255),(251,7,255,255) ]
+    colorSpace=[(192,0,0,255),(49,153,0,255),(3,28,255,255),(203,164,4,255),(203,164,4,255) ]
     picturePath = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'pictures')
-    resultsPath = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'results','exp2')
-    if not os.path.exists(resultsPath):
-        os.makedirs(resultsPath)
-    introductionImage1 = pygame.image.load(os.path.join(picturePath, 'IdOnlyIntro1.png'))
-    introductionImage2 = pygame.image.load(os.path.join(picturePath, 'IdOnlyIntro2.png'))
+    resultsPath = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'results')
+
+    introductionImage1 = pygame.image.load(os.path.join(picturePath, 'connectionIntro1.png'))
+    introductionImage2 = pygame.image.load(os.path.join(picturePath, 'connectionIntro2.png'))
     finishImage = pygame.image.load(os.path.join(picturePath, 'over.jpg'))
     introductionImage1 = pygame.transform.scale(introductionImage1, (screenWidth, screenHeight))
     introductionImage2 = pygame.transform.scale(introductionImage2, (screenWidth, screenHeight))
@@ -232,22 +241,23 @@ def main():
     drawFixationPoint = DrawFixationPoint(screen, drawBackGround, fixationPointColor)
     drawImageClick = DrawImageClick(screen, clickImageHeight, drawText)
 
-    
-    drawState = DrawState(screen, circleSize, numOfAgent, positionIndex, drawBackGround)
+    ropeColor = THECOLORS['grey']
+    ropeWidth = 4
+    drawState = DrawStateWithLineRope(screen, circleSize, numOfAgent, positionIndex, ropeColor, ropeWidth, drawBackGround)
+    # drawStateWithRope = DrawStateWithRope(screen, circleSize, numOfAgent, positionIndex, ropeColor, drawBackground)    
    
 
     writerPath = os.path.join(resultsPath, experimentValues["name"]) + '.csv'
     writer = WriteDataFrameToCSV(writerPath)
 
-    # displayFrames = 500
-    reactionWindowStart = 50
-    keysForCheck = {'space': 1}
-    checkHumanResponse = CheckHumanResponseWithSpace(keysForCheck)
-    trial = ChaseTrialMujocoFps(conditionsWithId,reactionWindowStart, drawState, drawImage, transformedStimulus, checkHumanResponse, colorSpace, numOfAgent, drawFixationPoint, drawText, drawImageClick, clickWolfImage, clickSheepImage)
-    
+    displayFrames = 800
+    keysForCheck = {'f': 0, 'j': 1}
+    checkHumanResponse = CheckHumanResponse(keysForCheck)
+    trial = ChaseTrialMujocoWithLineRopeForReport(conditionsWithId,displayFrames, drawState, drawImage, stimulus, checkHumanResponse, colorSpace, numOfAgent, drawFixationPoint, drawText, drawImageClick, clickWolfImage, clickSheepImage, FPS)
+
     experiment = Experiment(trial, writer, experimentValues,drawImage,restImage,drawBackGround)
    
-    restDuration=120
+    restDuration=20
 
     drawImage(introductionImage1)
     drawImage(introductionImage2)

@@ -15,7 +15,9 @@ if __name__ == '__main__':
 
   
 
-    dataPath = os.path.join(DIRNAME,'..','..','ExpResult','exp2')
+    # dataPath = os.path.join(DIRNAME,'..','..','ExpResult','exp2')
+    dataPath = os.path.join(DIRNAME,'..','..','ExpResult','preExpMasterOffset')
+    
     # dataPath = os.path.join(DIRNAME,'..','..','ExpResult','519','result')
     # dataPath = os.path.join(DIRNAME,'..','..','ExpResult','512')
     # dataPath = 'F:\DeskMirror\DRL\ExpResult\512\result'
@@ -33,6 +35,12 @@ if __name__ == '__main__':
     # df2 = df1.loc[df1['offset']==0.0]
     # df2["hit"] = df2.apply(lambda row: 1 if row['response'] == 1 and row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
     df2["hit"] = df2.apply(lambda row: 1 if  row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
+    df2["masterWolf"] = df2.apply(lambda row: 1 if  row['chosenWolfIndex'] == 2.0 and row['chosenSheepIndex'] == 0.0 else 0, axis=1)
+    # df2["masterDistractor"] = df2.apply(lambda row: 1 if  row['chosenWolfIndex'] == 2.0 and row['chosenSheepIndex'] > 2.0 else 0, axis=1)
+    # df2["wolfDistractor"] = df2.apply(lambda row: 1 if  row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] > 2.0 else 0, axis=1)
+    df2["wolfMaster"] = df2.apply(lambda row: 1 if  row['chosenWolfIndex'] == 2.0 and row['chosenSheepIndex'] == 0.0 else 0, axis=1)
+    df2["masterSheep"] = df2.apply(lambda row: 1 if  row['chosenWolfIndex'] == 2.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
+
     # df2["miss"] = df2.apply(lambda row: 1 if row['response'] == 0  else 0, axis=1)
     # df2["hit"] = df2.apply(lambda row: 1 if row['response'] == 1 and row['chosenWolfIndex'] == 0.0 and row['chosenSheepIndex'] == 1.0 else 0, axis=1)
 
@@ -46,20 +54,25 @@ if __name__ == '__main__':
 
 
     manipulatedVariables = OrderedDict()
+    # manipulatedVariables['damping'] = [0.0, 0.5]  # [0.0, 1.0]
+    # manipulatedVariables['frictionloss'] = [40, 50]  # [0.0, 0.2, 0.4]
+    # manipulatedVariables['displayTime'] = [10, 15]  # [0.0, 2.0]
+    # manipulatedVariables['offset'] = [-0.5,0.0,0.5,1.0]
     manipulatedVariables['damping'] = [0.0, 0.5]  # [0.0, 1.0]
-    manipulatedVariables['fps'] = [40, 50]  # [0.0, 0.2, 0.4]
-    manipulatedVariables['displayTime'] = [10, 15]  # [0.0, 2.0]
-    manipulatedVariables['offset'] = [0.0, 1.0]
+    manipulatedVariables['frictionloss'] = [0.0, 1.0]  # [0.0, 0.2, 0.4]
+    manipulatedVariables['masterForce'] = [0.0]  # [0.0, 2.0]
+    manipulatedVariables['offset'] = [-0.5,0.0,0.5,1.0]
 
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
     toSplitFrame = pd.DataFrame(index=modelIndex)
 
-    def getMean(para,data,index):
-        # selectSub = data.loc[(df['damping']==para['damping']) & (df['fps']==para['fps']) & (df['displayTime']==para['displayTime']) & (df['offset']==para['offset'])]
-        selectSub = data.loc[(data['damping']==para['damping']) & (data['fps']==para['fps']) & (data['displayTime']==para['displayTime']) ]
-        return selectSub[index].mean()
+    # def getMean(para,data,index):
+    #     # selectSub = data.loc[(df['damping']==para['damping']) & (df['fps']==para['fps']) & (df['displayTime']==para['displayTime']) & (df['offset']==para['offset'])]
+    #     # selectSub = data.loc[(data['damping']==para['damping']) & (data['fps']==para['fps']) & (data['displayTime']==para['displayTime']) ]
+    #     selectSub = data.loc[(data['damping']==para['damping']) & (data['frictionloss']==para['frictionloss']) & (data['displayTime']==para['displayTime']) ]
+    #     return selectSub[index].mean()
     # mesureMentFromDf = lambda df: getMean(readParametersFromDf(df),df2)
     # statisticsDf = toSplitFrame.groupby(levelNames).apply(mesureMentFromDf)
     # print(statisticsDf)
@@ -111,45 +124,62 @@ if __name__ == '__main__':
     # plot the results
 
     def drawPerformanceLine(dataDf, axForDraw):
-        for damping, grp in dataDf.groupby('damping'):
+        for masterForce, grp in dataDf.groupby('masterForce'):
             # grp.index = grp.index.droplevel('displayTime')
-            # meanSub=grp.groupby('offset')['hit'].mean()
-            meanSub = grp.groupby('offset')['reactionTime'].mean()
+            meanSub = grp.groupby('offset')['hit'].mean()
+            meanSub2 = grp.groupby('offset')['masterWolf'].mean()
+            meanSub3 = grp.groupby('offset')['masterSheep'].mean()
+            # meanSub4 = grp.groupby('offset')['masterDistractor'].mean()
+            meanSub4 = grp.groupby('offset')['wolfMaster'].mean()
+
+
+            # meanSub = grp.groupby('offset')['reactionTime'].mean()
+
             # print(meanSub)
             # meanSub = grp.groupby('offset')['correctRejection'].mean()
-            meanSub.plot(ax=axForDraw, label='damping={}'.format(damping), y='mean',marker='o', logx=False)
-            # meanSub.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='displayTime={}'.format(displayTime))
+            # meanSub.plot(ax=axForDraw, label='masterForce={}'.format(masterForce), y='mean',marker='o', logx=False)
+            print(meanSub,meanSub2)
+
+            meanSub.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='wolf-sheep',color = 'green')
+            meanSub2.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='master-wolf',bottom = meanSub,color = 'red')
+            meanSub3.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='master-sheep',bottom = meanSub+meanSub2,color = 'yellow')
+            meanSub4.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='wolf-master',bottom = meanSub+meanSub2+meanSub3,color = 'blue')
+            # meanSub5.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='wolf-master',bottom = meanSub+meanSub2+meanSub3+meanSub4,color = 'black')
+            # meanSub5.plot(kind = 'bar',ax=axForDraw, y='mean', logx=False,label='wolf-master',color = 'black')
+
             # plt.bar(displayTime, meanSub, label='displayTime={}'.format(displayTime), align='center')
             # plt.hlines(1/6, -0.5,1.5, colors = "r", linestyles = "dashed")
-            axForDraw.set_xlim(-0, 1)
+            axForDraw.set_xlim(-0.5, 3.5)
             # grp['hit'].plot(x='offset',ax=axForDraw, label='displayTime={}'.format(displayTime), y='mean',
                     # marker='o', logx=False)
 
     fig = plt.figure()
-    numRows = len(manipulatedVariables['displayTime'])
-    numColumns = len(manipulatedVariables['fps'])
+    rowName = 'damping'
+    columnName = 'frictionloss'
+    numRows = len(manipulatedVariables[rowName])
+    numColumns = len(manipulatedVariables[columnName])
     plotCounter = 1
 
-    for displayTime, grp in df2.groupby('displayTime'):
+    for rowValue, grp in df2.groupby(rowName):
         # grp.index = grp.index.droplevel('damping')
 
-        for fps, group in grp.groupby('fps'):
+        for columnValue, group in grp.groupby(columnName):
             # group.index = group.index.droplevel('fps')
 
             axForDraw = fig.add_subplot(numRows,numColumns,plotCounter)
             if plotCounter % numColumns == 1:
-                axForDraw.set_ylabel('displayTime: {}'.format(displayTime))
+                axForDraw.set_ylabel(rowName+': {}'.format(rowValue))
             if plotCounter <= numColumns:
-                axForDraw.set_title('fps: {}'.format(fps))
-            # axForDraw.set_ylim(0, 1)
-            axForDraw.set_ylim(0, 20000)
+                axForDraw.set_title(columnName+': {}'.format(columnValue))
+            axForDraw.set_ylim(0, 1)
+            # axForDraw.set_ylim(0, 20000)
 
             # plt.ylabel('Distance between optimal and actual next position of sheep')
             drawPerformanceLine(group, axForDraw)
             # trainStepLevels = statisticsDf.index.get_level_values('trainSteps').values
             # axForDraw.plot(trainStepLevels, [1.18]*len(trainStepLevels), label='mctsTrainData')
             plotCounter += 1
-    plt.suptitle('RT,nubOfSubj={}'.format(nubOfSubj))
+    plt.suptitle('Identification,nubOfSubj={}'.format(nubOfSubj))
 
     plt.legend(loc='best')
     plt.show()

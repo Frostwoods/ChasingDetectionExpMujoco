@@ -1,10 +1,26 @@
-import pandas as pd
+# import pandas as pd
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import random
 import numpy as np
 import pickle
+class GetSavePath:
+    def __init__(self, dataDirectory, extension, fixedParameters={}):
+        self.dataDirectory = dataDirectory
+        self.extension = extension
+        self.fixedParameters = fixedParameters
+
+    def __call__(self, parameters):
+        allParameters = dict(list(parameters.items()) + list(self.fixedParameters.items()))
+        sortedParameters = sorted(allParameters.items())
+        nameValueStringPairs = [parameter[0] + '=' + str(parameter[1]) for parameter in sortedParameters]
+
+        fileName = '_'.join(nameValueStringPairs) + self.extension
+        fileName = fileName.replace(" ", "")
+
+        path = os.path.join(self.dataDirectory, fileName)
+        return path
 def loadFromPickle(path):
     pickleIn = open(path, 'rb')
     object = pickle.load(pickleIn)
@@ -21,6 +37,47 @@ def adjustPostionDF(df, xPosIndex, yPosIndex, stimulusXBoundary, stimulusYBounda
     df[yPosIndex] = df[yPosIndex] * stimulusYBoundary[1] / dataSetBoundary[1] + stimulusYBoundary[0]
     adjustPostionDF = df
     return adjustPostionDF
+
+class HorizontalRotationTransformTrajectory:
+    def __init__(self, positionIndex, rawXRange, rawYRange):
+        self.xIndex, self.yIndex = positionIndex
+        self.rawXMin, self.rawXMax = rawXRange
+        self.rawYMin, self.rawYMax = rawYRange
+
+    def __call__(self, originalTrajs,):
+ 
+        adjustX = lambda rawX: self.rawXMin + self.rawXMax -rawX
+        adjustY = lambda rawY: rawY
+
+        adjustPair = lambda pair: [adjustX(pair[0]), adjustY(pair[1])]
+        agentCount = len(originalTrajs[0][0])
+
+        adjustState = lambda state: [adjustPair(state[agentIndex]) for agentIndex in range(agentCount)]
+        trajectory =[ [adjustState(state) for state in originalTraj] for originalTraj in originalTrajs]
+
+        return trajectory
+class RotationTransformTrajectory:
+    def __init__(self, positionIndex, rawXRange, rawYRange):
+        self.xIndex, self.yIndex = positionIndex
+        self.rawXMin, self.rawXMax = rawXRange
+        self.rawYMin, self.rawYMax = rawYRange
+
+    def __call__(self, originalTrajs,rotationAngle):
+
+        xCenter = (self.rawXMin + self.rawXMax) / 2
+        yCenter = (self.rawYMin + self.rawYMax) / 2
+
+        adjustX = lambda pair:xCenter + np.cos(rotationAngle) * (pair[0] - xCenter) - np.sin(rotationAngle)  * (pair[1] - yCenter) 
+        adjustY = lambda pair:yCenter + np.cos(rotationAngle) * (pair[1] - yCenter)  + np.sin(rotationAngle)  * (pair[0] - xCenter) 
+
+        adjustPair = lambda pair: [adjustX(pair), adjustY(pair)]
+        agentCount = len(originalTrajs[0][0])
+
+        adjustState = lambda state: [adjustPair(state[agentIndex]) for agentIndex in range(agentCount)]
+        trajectory =[ [adjustState(state) for state in originalTraj] for originalTraj in originalTrajs]
+
+        return trajectory
+
 class ScaleTrajectory:
     def __init__(self, positionIndex, rawXRange, rawYRange, scaledXRange, scaledYRange):
         self.xIndex, self.yIndex = positionIndex
@@ -44,6 +101,8 @@ class ScaleTrajectory:
         trajectory =[ [adjustState(state) for state in originalTraj] for originalTraj in originalTrajs]
 
         return trajectory
+
+
 class AdjustDfFPStoTraj:
     def __init__(self, oldFPS, newFPS):
         self.oldFPS = oldFPS
@@ -74,23 +133,23 @@ class AdjustDfFPStoTraj:
 
 
 
-class GenerateTrajetoryData():
-    def __init__(self, dataFileDir, stimulusXBoundary, stimulusYBoundary, dataSetBoundary):
-        self.dataFileDir = dataFileDir
-        self.stimulusXBoundary = stimulusXBoundary
-        self.stimulusYBoundary = stimulusYBoundary
-        self.dataSetBoundary = dataSetBoundary
+# class GenerateTrajetoryData():
+#     def __init__(self, dataFileDir, stimulusXBoundary, stimulusYBoundary, dataSetBoundary):
+#         self.dataFileDir = dataFileDir
+#         self.stimulusXBoundary = stimulusXBoundary
+#         self.stimulusYBoundary = stimulusYBoundary
+#         self.dataSetBoundary = dataSetBoundary
 
-    def __call__(self, condition, trajetoryIndexList):
-        trajetoryIndex = random.choice(trajetoryIndexList)
-        fileName = str(condition) + '(' + str(trajetoryIndex) + ')' + '.xls'
-        filePath = os.path.join(self.dataFileDir, fileName)
-        df = pd.read_excel(filePath, header=None)
-        xPosIndex = list(range(0, 8, 2))
-        yPosIndex = list(range(1, 8, 2))
-        adjustedDF = adjustPostionDF(df, xPosIndex, yPosIndex, self.stimulusXBoundary, self.stimulusYBoundary, self.dataSetBoundary)
-        trajetoryData = [[[row[0], row[1]], [row[2], row[3]], [row[4], row[5]], [row[6], row[7]]] for index, row in adjustedDF.iterrows()]
-        return trajetoryData
+#     def __call__(self, condition, trajetoryIndexList):
+#         trajetoryIndex = random.choice(trajetoryIndexList)
+#         fileName = str(condition) + '(' + str(trajetoryIndex) + ')' + '.xls'
+#         filePath = os.path.join(self.dataFileDir, fileName)
+#         df = pd.read_excel(filePath, header=None)
+#         xPosIndex = list(range(0, 8, 2))
+#         yPosIndex = list(range(1, 8, 2))
+#         adjustedDF = adjustPostionDF(df, xPosIndex, yPosIndex, self.stimulusXBoundary, self.stimulusYBoundary, self.dataSetBoundary)
+#         trajetoryData = [[[row[0], row[1]], [row[2], row[3]], [row[4], row[5]], [row[6], row[7]]] for index, row in adjustedDF.iterrows()]
+#         return trajetoryData
 
 
 if __name__ == '__main__':

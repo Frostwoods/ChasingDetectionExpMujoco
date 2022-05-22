@@ -86,13 +86,15 @@ def main():
     # manipulatedVariables['damping'] = [0.0]  # [0.0, 1.0]
     # manipulatedVariables['frictionloss'] = [0.0]  # [0.0, 0.2, 0.4]
     # manipulatedVariables['masterForce'] = [0.0]
-    manipulatedVariables['damping'] = [0.0, 0.5]  # [0.0, 1.0]
+    manipulatedVariables['damping'] = [0.5]  # [0.0, 1.0]
     manipulatedVariables['frictionloss'] = [1.0]  # [0.0, 0.2, 0.4]
-    manipulatedVariables['masterForce'] = [0.0]  # [0.0, 2.0]
-    manipulatedVariables['offset'] = [0.0, 1.0]
-    manipulatedVariables['hideId'] = [3, 4]
-    manipulatedVariables['fps'] = [40, 50]  
-    manipulatedVariables['displayTime'] = [10, 15]
+    manipulatedVariables['masterForce'] = [1.0]  # [0.0, 2.0]
+    manipulatedVariables['offset'] = [0.0] #[0.0,-1.0,-0.5,0.5,1.0]
+    manipulatedVariables['hideId'] = [3]
+    manipulatedVariables['ropeLength'] = [0.09]#[0.06,0.09,0.12,0.15]
+
+    manipulatedVariables['fps'] = [50]  
+    manipulatedVariables['displayTime'] = [10]
 
     chaseTrailVariables = manipulatedVariables.copy()
     # catchTrailVariables = manipulatedVariables.copy()
@@ -106,8 +108,8 @@ def main():
     conditions = chaseTrailconditions
     conditions = [condition.update({'conditionId': condtionId}) for condtionId,condition in zip(range(len(conditions)),conditions )]
    
-    chaseTrailNum = 10
-    chaseTrailTrajetoryIndexList = range (chaseTrailNum)
+    chaseTrailNum = 30
+    chaseTrailTrajetoryIndexList =range (chaseTrailNum)
     chaseTrailManipulatedVariablesForExp =  co.OrderedDict()
     chaseTrailManipulatedVariablesForExp['conditonId'] = range(len(chaseTrailconditions))
     chaseTrailManipulatedVariablesForExp['trajetoryIndex'] = chaseTrailTrajetoryIndexList
@@ -147,33 +149,29 @@ def main():
     horizontalRotationTransformTrajectory = HorizontalRotationTransformTrajectory(positionIndex, rawXRange, rawYRange )
     rotationTransformTrajectory = RotationTransformTrajectory(positionIndex, rawXRange, rawYRange )
     def transFormTrajectory(trajList,randomId):
-        # if randomId<12:
-        #     isRotation = randomId//8
-        #     rotationAngle =np.mod(randomId//2,4)* np.pi / 2
-        # else:
-        #     isRotation = 0
-        #     rotationAngle = np.mod(randomId,4)* np.pi / 2
-       # if isRotation:
-        #     finalTrajs = horizontalRotationTransformTrajectory(rotationTraj)
         randomSeed = np.mod(randomId, 8)
-        rotationAngle = np.mod(randomSeed, 4) * np.pi / 2
+        rotationAngle =0 #np.mod(randomSeed, 4) * np.pi / 2
         rotationTraj = rotationTransformTrajectory(trajList, rotationAngle)
         # if np.mod(randomSeed//4,2) ==1:
             # finalTrajs = horizontalRotationTransformTrajectory(rotationTraj)
         # else:
-        # else:
-        # finalTrajs = rotationTraj
-        return finalTrajs
-    trajectoriesSaveDirectory ='../PataData/exp2Traj'
+        finalTrajs = rotationTraj
+        return trajList#finalTrajs
+    # trajectoriesSaveDirectory ='../PataData/preExpMasterOffset'
+    trajectoriesSaveDirectory ='../PataData/selectVarRLTrajBy30zyoct20'
+    
     # trajectoriesSaveDirectory =os.path.join(dataFolder, 'trajectory', modelSaveName)
     trajectorySaveExtension = '.pickle'
 
-    selctDict = {3:chaseTrailNum,4:chaseTrailNum}
-    evaluateEpisode = 120000
+    selctDict = {2:chaseTrailNum,3:chaseTrailNum}
+    evaluateEpisode = 60000
     evalNum = 20
-    fixedParameters = {'distractorNoise': 3.0,'evaluateEpisode': evaluateEpisode}
+    ropePunishWeight=0.3
+    masterMass = 1.0
+    killZone = 2.0
+    fixedParameters = {'distractorNoise': 3.0,'evaluateEpisode': evaluateEpisode,'masterMass':masterMass,'ropePunishWeight':ropePunishWeight,'killZone':killZone}
     generateTrajectoryLoadPath = GetSavePath(trajectoriesSaveDirectory, trajectorySaveExtension, fixedParameters)
-    trajectoryDf = lambda condition: loadFromPickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'],'select':selctDict[condition['hideId']] }))
+    trajectoryDf = lambda condition: loadFromPickle(generateTrajectoryLoadPath({'offset':condition['offset'],'hideId':condition['hideId'],'damping': condition['damping'], 'frictionloss': condition['frictionloss'], 'masterForce': condition['masterForce'],'select':selctDict[condition['hideId']],'ropeLength':condition['ropeLength']}))
 
     getTrajectory = lambda trajectoryDf: scaleTrajectoryInTime(scaleTrajectoryInSpace(trajectoryDf))
     
@@ -182,7 +180,8 @@ def main():
 # 
     transformedStimulus = {conditionId: transFormTrajectory(getTrajectory(trajectoryDf(condition)),conditionId)  for conditionId,condition in conditionsWithId}
     print('loding success')
-    print(len(transformedStimulus[1]))
+
+ 
     experimentValues = co.OrderedDict()
     experimentValues["name"] = input("Please enter your name:").capitalize()
     
@@ -190,7 +189,7 @@ def main():
     screenWidth = 800
     screenHeight = 800
 
-    fullScreen = True
+    fullScreen = False
     initializeScreen = InitializeScreen(screenWidth, screenHeight, fullScreen)
     screen = initializeScreen()
  
@@ -211,7 +210,7 @@ def main():
 
 
     picturePath = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'pictures')
-    resultsPath = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'results','exp2')
+    resultsPath = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'results','preExpMasterOffset')
     if not os.path.exists(resultsPath):
         os.makedirs(resultsPath)
     introductionImage1 = pygame.image.load(os.path.join(picturePath, 'IdOnlyIntro1.png'))
